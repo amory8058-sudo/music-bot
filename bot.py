@@ -1,18 +1,16 @@
 import os
-import asyncio
 from pyrogram import Client, filters
-from pyrogram.types import Message
 from pytgcalls import PyTgCalls
 from pytgcalls.types import MediaStream
 import yt_dlp
 
-API_ID = int(os.getenv("API_ID", "123456"))
-API_HASH = os.getenv("API_HASH", "your_api_hash")
-BOT_TOKEN = "8772933159:AAFRgtCmrRF0pY7DtA40k0Gy-NKdYWh3Cic"
-STRING_SESSION = os.getenv("STRING_SESSION", "")
+# بيانات البوت (تقدر تسيبها زي ما هي أو تقرأها من Environment Variables)
+API_ID = int(os.getenv("API_ID", "0"))
+API_HASH = os.getenv("API_HASH", "")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 
 app = Client(
-    "MusicBot",
+    "music_bot",
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
@@ -20,62 +18,55 @@ app = Client(
 
 call_py = PyTgCalls(app)
 
-@app.on_message(filters.command(["start", "help"]))
-async def start_handler(client, message: Message):
-    await message.reply_text(
-        "✨ **أهلاً بك في بوت الموسيقى الاحترافي!**\n\n"
-        "🎵 تشغيل الأغاني في المكالمات الصوتية للجروبات والقنوات.\n"
-        "• استخدم الأمر: `/play [اسم الأغنية]` لتشغيلها في المحادثة الصوتية.\n"
-        "• استخدم الأمر: `/stop` لإيقاف التشغيل."
-    )
+@app.on_message(filters.command("start"))
+async def start_cmd(client, message):
+    await message.reply_text("🎵 أهلاً بك! بوت الأغاني يعمل بكفاءة وجاهز لاستقبال أمر /play.")
 
-@app.on_message(filters.command(["play"]))
-async def play_handler(client, message: Message):
+@app.on_message(filters.command("play"))
+async def play_cmd(client, message):
     if len(message.command) < 2:
-        return await message.reply_text("❌ **يرجى كتابة اسم الأغنية بعد الأمر!**\nمثال: `/play عمرو دياب`")
+        await message.reply_text("❌ من فضلك اكتب اسم الأغنية أو رابط اليوتيوب بعد الأمر.\nمثال:\n`/play faded`")
+        return
     
     query = " ".join(message.command[1:])
-    m = await message.reply_text(f"🔍 **جاري البحث والتحميل لـ:** `{query}`...")
+    m = await message.reply_text(f"🔍 جاري البحث عن: `{query}`...")
 
     try:
-        ydl_opts = {
-            'format': 'bestaudio',
-            'default_search': 'ytsearch',
-            'noplaylist': True,
-            'quiet': True
-        }
-        
+        # استخراج رابط اليوتيوب مباشرة باستخدام yt-dlp
+        ydl_opts = {'format': 'bestaudio', 'quiet': True}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=False)
-            if 'entries' in info:
-                info = info['entries'][0]
+            if "youtube.com" in query or "youtu.be" in query:
+                info = ydl.extract_info(query, download=False)
+            else:
+                info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
             
-            song_url = info['url']
-            title = info.get('title', 'مقطوعة موسيقية')
+            stream_url = info['url']
+            title = info.get('title', 'مقطع صوتي')
 
-        chat_id = message.chat.id
         await call_py.join_group_call(
-            chat_id,
-            MediaStream(song_url)
+            message.chat.id,
+            MediaStream(stream_url)
         )
-        await m.edit_text(f"▶️ **جاري الآن تشغيل:**\n`{title}`")
+        await m.edit_text(f"🎶 جاري تشغيل الآن: **{title}**")
+    
     except Exception as e:
-        await m.edit_text(f"❌ **حدث خطأ أثناء التشغيل:**\n`{str(e)}`\n\n*(تأكد من بدء المكالمة الصوتية في الجروب وأن البوت داخل الجروب ومشرف)*")
+        await m.edit_text(f"❌ حدث خطأ أثناء التشغيل:\n`{e}`")
 
-@app.on_message(filters.command(["stop"]))
-async def stop_handler(client, message: Message):
+@app.on_message(filters.command("stop"))
+async def stop_cmd(client, message):
     try:
         await call_py.leave_group_call(message.chat.id)
-        await message.reply_text("⏹ **تم إيقاف الموسيقى ومغادرة المكالمة الصوتية.**")
+        await message.reply_text("⏹️ تم إيقاف التشغيل ومغادرة المكون الصوتي.")
     except Exception as e:
-        await message.reply_text(f"❌ **لا توجد مكالمة صوتية نشطة أو حدث خطأ:** `{str(e)}`")
+        await message.reply_text(f"❌ حدث خطأ:\n`{e}`")
 
 async def main():
     await app.start()
     await call_py.start()
-    print("🚀 بوت الموسيقى الاحترافي يعمل الآن بنجاح...")
+    print("Bot Started Successfully!")
+    from pyrogram import idle
     await idle()
 
 if __name__ == "__main__":
-    from pyrogram import idle
-    app.run(main())
+    import asyncio
+    asyncio.get_event_loop().run_until_complete(main())
