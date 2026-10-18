@@ -3,18 +3,14 @@ import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from pytgcalls import PyTgCalls
-from pytgcalls.types import AudioPiped
-# ملاحظة: سنستخدم yt-dlp لجلب روابط البث المباشر للأغاني من يوتيوب
+from pytgcalls.types import MediaStream
 import yt_dlp
 
-# جلب المعلومات من متغيرات البيئة في Railway أو تعيينها مباشرة
-API_ID = int(os.getenv("API_ID", "123456"))  # ضع الـ API_ID الخاص بك هنا أو في متغيرات البيئة
-API_HASH = os.getenv("API_HASH", "your_api_hash")  # ضع الـ API_HASH هنا أو في متغيرات البيئة
+API_ID = int(os.getenv("API_ID", "123456"))
+API_HASH = os.getenv("API_HASH", "your_api_hash")
 BOT_TOKEN = "8772933159:AAFRgtCmrRF0pY7DtA40k0Gy-NKdYWh3Cic"
-STRING_SESSION = os.getenv("STRING_SESSION", "")  # جلسة الحساب المساعد (Userbot)
+STRING_SESSION = os.getenv("STRING_SESSION", "")
 
-# إعداد عميل البوت الحسابي أو المساعد للاتصال بالمكالمات الصوتية
-# إذا لم توفر STRING_SESSION سيتم تشغيل البوت العادي للتنبيهات والأوامر
 app = Client(
     "MusicBot",
     api_id=API_ID,
@@ -42,7 +38,6 @@ async def play_handler(client, message: Message):
     m = await message.reply_text(f"🔍 **جاري البحث والتحميل لـ:** `{query}`...")
 
     try:
-        # البحث بواسطة yt-dlp للحصول على رابط البث الصوتي المباشر
         ydl_opts = {
             'format': 'bestaudio',
             'default_search': 'ytsearch',
@@ -58,15 +53,14 @@ async def play_handler(client, message: Message):
             song_url = info['url']
             title = info.get('title', 'مقطوعة موسيقية')
 
-        # بدء التشغيل في المكالمة الصوتية للـ Chat الحالي
         chat_id = message.chat.id
         await call_py.join_group_call(
             chat_id,
-            AudioPiped(song_url)
+            MediaStream(song_url)
         )
         await m.edit_text(f"▶️ **جاري الآن تشغيل:**\n`{title}`")
     except Exception as e:
-        await m.edit_text(f"❌ **حدث خطأ أثناء التشغيل:**\n`{str(e)}`\n\n*(تأكد من بدء المكالمة الصوتية في الجروب وأن البوت المساعد داخل الجروب ومشرف)*")
+        await m.edit_text(f"❌ **حدث خطأ أثناء التشغيل:**\n`{str(e)}`\n\n*(تأكد من بدء المكالمة الصوتية في الجروب وأن البوت داخل الجروب ومشرف)*")
 
 @app.on_message(filters.command(["stop"]))
 async def stop_handler(client, message: Message):
